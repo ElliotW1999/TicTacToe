@@ -1,7 +1,9 @@
 # TicTacToe AI benchmarking program to determine the performance of different AI algorithms playing the game.
 # Performance of an algorithm (the agent) is measured by a combination of win rate and computation time against a benchmark algorithm.
 # TicTacToe framework from https://inventwithpython.com/chapter10.html
+# Minimax + a/b code from https://www.geeksforgeeks.org/minimax-algorithm-in-game-theory-set-3-tic-tac-toe-ai-finding-optimal-move/
 import random
+import time
 
 
 def drawBoard(board):
@@ -12,6 +14,7 @@ def drawBoard(board):
     print(' ' + board[4] + ' | ' + board[5] + ' | ' + board[6])
     print('-----------')
     print(' ' + board[1] + ' | ' + board[2] + ' | ' + board[3])
+    print(' ')
 
 
 def inputAgentLetter():
@@ -65,31 +68,47 @@ def isSpaceFree(board, move):
     return board[move] == ' '
 
 
-def evaluate(board):
-    if isWinner(board, benchmarkLetter):
+def evaluate(board, playerLetter):
+    if playerLetter == 'X':
+        opponentLetter = 'O'
+    else:
+        opponentLetter = 'X'
+
+    if isWinner(board, opponentLetter):
         return -10
-    if isWinner(board, agentLetter):
+    if isWinner(board, playerLetter):
         return 10
     else:
         return 0
 
 
 def minimax(board, depth, isMaximizingPlayer):
+    score = evaluate(board, agentLetter)
+
+    if score == 10 or score == -10:
+        return score
+
     if isBoardFull(board):
-        return evaluate(board)
+        return 0
 
     if isMaximizingPlayer:
         bestVal = -100
         for i in range(1, 10):
-            value = minimax(board, depth+1, False)
-            bestVal = max(bestVal, value)
+            copy = getBoardCopy(board)
+            if isSpaceFree(copy, i):
+                makeMove(copy, agentLetter, i)
+                value = minimax(copy, depth+1, False) - depth
+                bestVal = max(bestVal, value)
         return bestVal
 
     else:
         bestVal = 100
         for i in range(1, 10):
-            value = minimax(board, depth+1, True)
-            bestVal = min(bestVal, value)
+            copy = getBoardCopy(board)
+            if isSpaceFree(copy, i):
+                makeMove(copy, benchmarkLetter, i)
+                value = minimax(copy, depth+1, True) + depth
+                bestVal = min(bestVal, value)
         return bestVal
 
 
@@ -99,7 +118,7 @@ def findBestMove(board):
     for i in range(1, 10):
         copy = getBoardCopy(board)
         if isSpaceFree(copy, i):
-            makeMove(copy, benchmarkLetter, i)
+            makeMove(copy, agentLetter, i)
             moveValue = minimax(copy, 0, False)
             if moveValue > bestMoveValue:
                 bestMoveValue = moveValue
@@ -108,57 +127,57 @@ def findBestMove(board):
     return bestMove
 
 
-def getAgentMove(board):
-    # Minimax: evaluate each possible
-    return findBestMove(board)
-
-
-def chooseRandomMoveFromList(board, movesList):
-    # Returns a valid move from the passed list on the passed board.
-    # Returns None if there is no valid move.
-    possibleMoves = []
-    for i in movesList:
-        if isSpaceFree(board, i):
-            possibleMoves.append(i)
-
-    if len(possibleMoves) != 0:
-        return random.choice(possibleMoves)
-    else:
-        return None
-
-
-def getBenchmarkMove(board, benchmarkLetter):
-    # Given a board and the benchmark's letter, determine where to move and return that move.
-    agentLetter = 'X'
-
-    # Here is our algorithm for our Tic Tac Toe AI:
-    # First, check if we can win in the next move
+def findBestBenchmarkMove(board):
+    bestMove = 0
+    bestMoveValue = -100
     for i in range(1, 10):
         copy = getBoardCopy(board)
         if isSpaceFree(copy, i):
             makeMove(copy, benchmarkLetter, i)
-            if isWinner(copy, benchmarkLetter):
-                return i
+            moveValue = minimaxBenchmark(copy, 0, False)
+            if moveValue > bestMoveValue:
+                bestMoveValue = moveValue
+                bestMove = i
 
-    # Check if the agent could win on their next move, and block them.
-    for i in range(1, 10):
-        copy = getBoardCopy(board)
-        if isSpaceFree(copy, i):
-            makeMove(copy, agentLetter, i)
-            if isWinner(copy, agentLetter):
-                return i
+    return bestMove
 
-    # Try to take one of the corners, if they are free.
-    move = chooseRandomMoveFromList(board, [1, 3, 7, 9])
-    if move is not None:
-        return move
 
-    # Try to take the center, if it is free.
-    if isSpaceFree(board, 5):
-        return 5
+def getAgentMove(board):
+    return findBestMove(board)
 
-    # Move on one of the sides.
-    return chooseRandomMoveFromList(board, [2, 4, 6, 8])
+
+def getBenchmarkMove(board):
+    return findBestBenchmarkMove(board)
+
+
+def minimaxBenchmark(board, depth, isMaximizingPlayer):
+    score = evaluate(board, benchmarkLetter)
+
+    if score == 10 or score == -10:
+        return score
+
+    if isBoardFull(board):
+        return 0
+
+    if isMaximizingPlayer:
+        bestVal = -100
+        for i in range(1, 10):
+            copy = getBoardCopy(board)
+            if isSpaceFree(copy, i):
+                makeMove(copy, benchmarkLetter, i)
+                value = minimaxBenchmark(copy, depth+1, False) - depth
+                bestVal = max(bestVal, value)
+        return bestVal
+
+    else:
+        bestVal = 100
+        for i in range(1, 10):
+            copy = getBoardCopy(board)
+            if isSpaceFree(copy, i):
+                makeMove(copy, agentLetter, i)
+                value = minimaxBenchmark(copy, depth+1, True) + depth
+                bestVal = min(bestVal, value)
+        return bestVal
 
 
 def isBoardFull(board):
@@ -170,8 +189,17 @@ def isBoardFull(board):
 
 
 print('Welcome to Tic Tac Toe!')
+agentScore = 0
+benchmarkScore = 0
+avgAgentTime = 0
+avgBenchmarkTime = 0
 
-while True:
+
+#while True:
+for j in range(1, 7):
+    # Reset
+    agentTime = 0
+    benchmarkTime = 0
     # Reset the board
     theBoard = [' '] * 10
     agentLetter, benchmarkLetter = inputAgentLetter()
@@ -182,37 +210,52 @@ while True:
     while gameIsPlaying:
         if turn == 'agent':
             # Agent’s turn.
-            drawBoard(theBoard)
+            #drawBoard(theBoard)
+            agent_start_time = time.time()
             move = getAgentMove(theBoard)
+            agentTime += (time.time() - agent_start_time)
             makeMove(theBoard, agentLetter, move)
 
             if isWinner(theBoard, agentLetter):
                 drawBoard(theBoard)
                 print('Hooray! You have won the game!')
-                gameIsPlaying = False
+                agentScore += 1
+                avgAgentTime += agentTime / 6
+                avgBenchmarkTime += benchmarkTime / 6
+                break
             else:
                 if isBoardFull(theBoard):
                     drawBoard(theBoard)
                     print('The game is a tie!')
+                    avgAgentTime += agentTime / 6
+                    avgBenchmarkTime += benchmarkTime / 6
                     break
                 else:
                     turn = 'benchmark'
 
         else:
             # Benchmark’s turn.
-            move = getBenchmarkMove(theBoard, benchmarkLetter)
+            benchmark_start_time = time.time()
+            move = getBenchmarkMove(theBoard)
+            benchmarkTime += (time.time() - benchmark_start_time)
             makeMove(theBoard, benchmarkLetter, move)
             if isWinner(theBoard, benchmarkLetter):
                 drawBoard(theBoard)
                 print('The benchmark has beaten you! You lose.')
+                benchmarkScore += 1
                 gameIsPlaying = False
+                avgAgentTime += agentTime / 6
+                avgBenchmarkTime += benchmarkTime / 6
+                break
             else:
                 if isBoardFull(theBoard):
                     drawBoard(theBoard)
                     print('The game is a tie!')
+                    avgAgentTime += agentTime / 6
+                    avgBenchmarkTime += benchmarkTime / 6
                     break
                 else:
                     turn = 'agent'
-
-    if not playAgain():
-        break
+print("agent winrate is " + str(agentScore) + " for, " + str(benchmarkScore) + " against, in 6 games")
+print("average benchmark computation time is " + str(avgBenchmarkTime))
+print("average agent computation time is " + str(avgAgentTime))
