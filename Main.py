@@ -134,7 +134,7 @@ def findBestBenchmarkMove(board):
         copy = getBoardCopy(board)
         if isSpaceFree(copy, i):
             makeMove(copy, benchmarkLetter, i)
-            moveValue = minimaxBenchmark(copy, 0, False)
+            moveValue = minimaxBenchmark(copy, 0, False, -100, 100)
             if moveValue > bestMoveValue:
                 bestMoveValue = moveValue
                 bestMove = i
@@ -150,7 +150,7 @@ def getBenchmarkMove(board):
     return findBestBenchmarkMove(board)
 
 
-def minimaxBenchmark(board, depth, isMaximizingPlayer):
+def minimaxBenchmark(board, depth, isMaximizingPlayer, alpha, beta):
     score = evaluate(board, benchmarkLetter)
 
     if score == 10 or score == -10:
@@ -165,8 +165,11 @@ def minimaxBenchmark(board, depth, isMaximizingPlayer):
             copy = getBoardCopy(board)
             if isSpaceFree(copy, i):
                 makeMove(copy, benchmarkLetter, i)
-                value = minimaxBenchmark(copy, depth+1, False) - depth
+                value = minimaxBenchmark(copy, depth+1, False, alpha, beta) - depth
                 bestVal = max(bestVal, value)
+                alpha = max(alpha, bestVal)
+                if beta <= alpha:
+                    break
         return bestVal
 
     else:
@@ -175,8 +178,11 @@ def minimaxBenchmark(board, depth, isMaximizingPlayer):
             copy = getBoardCopy(board)
             if isSpaceFree(copy, i):
                 makeMove(copy, agentLetter, i)
-                value = minimaxBenchmark(copy, depth+1, True) + depth
+                value = minimaxBenchmark(copy, depth+1, True, alpha, beta) + depth
                 bestVal = min(bestVal, value)
+                beta = min(beta, bestVal)
+                if beta <= alpha:
+                    break
         return bestVal
 
 
